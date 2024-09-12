@@ -1,0 +1,17 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model marker {
+  mkid       Int     @id @default(autoincrement())
+  mktype     Int
+  mkname     String  @unique @db.VarChar(200)
+  mkorigname String? @db.VarChar(200)
+  parts      Int
+  mkcmt      String? @db.VarChar(1000)
+}
