@@ -7,11 +7,165 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model marker {
-  mkid       Int     @id @default(autoincrement())
-  mktype     Int
-  mkname     String  @unique @db.VarChar(200)
-  mkorigname String? @db.VarChar(200)
-  parts      Int
-  mkcmt      String? @db.VarChar(1000)
+model buff {
+  buffid        Int                   @id @default(autoincrement())
+  reftype       String?               @db.VarChar(20)
+  refname       String?               @db.VarChar(200)
+  refnameparent String?               @db.VarChar(200)
+  reflang       String?               @db.VarChar(200)
+  title         String?
+  titleorig     String?
+  www           String?               @db.VarChar(1000)
+  refcmt        String?               @db.VarChar(1000)
+  poptype       String?               @db.VarChar(20)
+  popname       String?               @db.VarChar(200)
+  cntry         String?               @db.VarChar(100)
+  province      String?               @db.VarChar(200)
+  ethnos        String?               @db.VarChar(200)
+  subethnos     String?               @db.VarChar(200)
+  poplang       String?               @db.VarChar(200)
+  healthy       Boolean?
+  healthycmt    String?               @db.VarChar(200)
+  policy        String?               @db.VarChar(200)
+  urbanity      String?               @db.VarChar(200)
+  lat           String?               @db.VarChar(50)
+  long          String?               @db.VarChar(50)
+  locdescr      String?               @db.VarChar(1000)
+  popcmt        String?               @db.VarChar(1000)
+  indname       String?               @db.VarChar(200)
+  hg            String?               @db.VarChar(200)
+  hgorig        String?               @db.VarChar(200)
+  hgcmt         String?               @db.VarChar(1000)
+  indcmt        String?               @db.VarChar(1000)
+  individuals   buff_to_individuals[]
+  buff_var      buff_var[]
+}
+
+model buff_var {
+  buffvarid Int     @id @default(autoincrement())
+  spos      Int     @db.Integer
+  epos      Int     @db.Integer
+  vartype   Int     @db.SmallInt
+  vardata   String? @db.Text
+
+  buffid Int
+  buff   buff @relation(fields: [buffid], references: [buffid], onDelete: Cascade)
+}
+
+model hist {
+  buffid        Int      @id
+  reftype       String?  @db.VarChar(20)
+  refname       String?  @db.VarChar(200)
+  refnameparent String?  @db.VarChar(200)
+  reflang       String?  @db.VarChar(200)
+  title         String?
+  titleorig     String?
+  www           String?  @db.VarChar(1000)
+  refcmt        String?  @db.VarChar(1000)
+  poptype       String?  @db.VarChar(20)
+  popname       String?  @db.VarChar(200)
+  cntry         String?  @db.VarChar(100)
+  province      String?  @db.VarChar(200)
+  ethnos        String?  @db.VarChar(200)
+  subethnos     String?  @db.VarChar(200)
+  poplang       String?  @db.VarChar(200)
+  healthy       Boolean?
+  healthycmt    String?  @db.VarChar(200)
+  policy        String?  @db.VarChar(200)
+  urbanity      String?  @db.VarChar(200)
+  lat           String?  @db.VarChar(50)
+  long          String?  @db.VarChar(50)
+  locdescr      String?  @db.VarChar(1000)
+  popcmt        String?  @db.VarChar(1000)
+  indname       String?  @db.VarChar(200)
+  hg            String?  @db.VarChar(200)
+  hgorig        String?  @db.VarChar(200)
+  hgcmt         String?  @db.VarChar(1000)
+  indcmt        String?  @db.VarChar(1000)
+  snp           String?  @db.Text
+  rflp          String?  @db.Text
+  seq           String?  @db.Text
+}
+
+model ref {
+  refid     Int      @id @default(autoincrement())
+  parentid  Int?
+  reftype   String   @db.VarChar(20)
+  refname   String   @unique @db.VarChar(200)
+  reflang   String?  @db.VarChar(200)
+  strtech   String?  @db.VarChar(200)
+  healthy   Boolean? @db.Boolean
+  title     String?
+  titleorig String?
+  www       String?  @db.VarChar(1000)
+  refcmt    String?  @db.VarChar(1000)
+  pop       pop[]
+  ref       ref?     @relation("refToref", fields: [parentid], references: [refid], onDelete: NoAction, onUpdate: NoAction)
+  other_ref ref[]    @relation("refToref")
+}
+
+model pop {
+  popid       Int           @id @default(autoincrement())
+  popname     String        @db.VarChar(200)
+  poptype     String        @db.VarChar(20)
+  refid       Int
+  cntry       String?       @db.VarChar(100)
+  province    String?       @db.VarChar(200)
+  ethnos      String?       @db.VarChar(200)
+  subethnos   String?       @db.VarChar(200)
+  poplang     String?       @db.VarChar(200)
+  healthy     Boolean?
+  healthycmt  String?       @db.VarChar(200)
+  policy      String?       @db.VarChar(200)
+  urbanity    String?       @db.VarChar(200)
+  lat         Float?
+  long        Float?
+  locdescr    String?       @db.VarChar(1000)
+  popcmt      String?       @db.VarChar(1000)
+  individuals individuals[]
+  ref         ref           @relation(fields: [refid], references: [refid], onDelete: Cascade)
+
+  @@unique([refid, popname])
+}
+
+model buff_to_individuals {
+  individuals individuals @relation(fields: [indid], references: [indid], onDelete: Cascade)
+  indid       Int
+  buff        buff        @relation(fields: [buffid], references: [buffid], onDelete: Cascade)
+  buffid      Int
+
+  @@id([indid, buffid])
+}
+
+model individuals {
+  indid      Int                   @id @default(autoincrement())
+  indname    String?               @db.VarChar(200)
+  popid      Int
+  sex        String?               @db.Char(1)
+  hg         String?               @db.VarChar(200)
+  hgorig     String?               @db.VarChar(200)
+  hgcmt      String?               @db.VarChar(1000)
+  indcmt     String?               @db.VarChar(1000)
+  pop        pop                   @relation(fields: [popid], references: [popid], onDelete: Cascade)
+  buff       buff_to_individuals[]
+  Renamedvar Renamedvar[]
+}
+
+model Renamedvar {
+  varid Int @id @default(autoincrement())
+
+  indid       Int
+  spos        Int         @db.Integer
+  epos        Int         @db.Integer
+  vartype     Int         @db.SmallInt
+  vardata     String      @db.Text
+  individuals individuals @relation(fields: [indid], references: [indid], onDelete: Cascade)
+
+  @@unique([indid, varid])
+  @@map("var")
+}
+
+model rflp {
+  rflpid   Int    @id @default(autoincrement())
+  rflpname String @db.VarChar(200)
 }
