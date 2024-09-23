@@ -39,7 +39,7 @@ export class ConvertedRowNValueToInt {
 
 		return this.readData.map((el) => {
 			const isTargetNValue = el.title === this.nValue;
-			const value: string | number = isTargetNValue ? Number(el.value) : el.title;
+			const value: string | number = isTargetNValue ? Number(el.value) : el.value;
 
 			if (isTargetNValue && isNaN(value as number)) {
 				throw new BadRequestException(

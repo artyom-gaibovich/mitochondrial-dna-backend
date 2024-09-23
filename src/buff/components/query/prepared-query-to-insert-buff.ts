@@ -13,7 +13,9 @@ export class PreparedQueryToInsertBuff {
 					? `'${this.insertData[i].value}'`
 					: `null`;
 			} else {
-				dataToInsert[`${this.insertData[i].column}`] = `'${this.insertData[i].value}'`;
+				dataToInsert[`${this.insertData[i].column}`] = this.insertData[i].value
+					? `'${this.insertData[i].value}'`
+					: `null`;
 			}
 		}
 		const columns: string = `(${Object.keys(dataToInsert).join(', ')})`;

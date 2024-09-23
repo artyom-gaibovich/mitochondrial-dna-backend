@@ -82,9 +82,9 @@ model hist {
   hgorig        String?  @db.VarChar(200)
   hgcmt         String?  @db.VarChar(1000)
   indcmt        String?  @db.VarChar(1000)
+  seq           String?  @db.Text
   snp           String?  @db.Text
   rflp          String?  @db.Text
-  seq           String?  @db.Text
 }
 
 model ref {
