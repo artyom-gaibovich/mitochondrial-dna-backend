@@ -27,6 +27,11 @@ import { CreatedRowInDb } from './components/db/created-row-in-db';
 import { TransformedObjectCellToString } from './components/row/transformed/transformed-object-cell-to-string';
 import { BuffTable } from './components/db/buff-table';
 import { ExcelRowProcessorFactory } from './components/row/processor/excel-row-processor-factory';
+import { ExcelRowBeginComponent } from './components/row/composite/excel/excel-row-begin.component';
+import { ExcelRowOptionsComponent } from './components/row/composite/excel/excel-row-options.component';
+import { ExcelRowHeadersComponent } from './components/row/composite/excel/excel-row-headers.component';
+import { ExcelRowEndComponent } from './components/row/composite/excel/excel-row-end.component';
+import { ExcelRowValueComponent } from './components/row/composite/excel/excel-row-value.component';
 
 export class BufferService {
 	constructor(@Inject(DIConstants.PrismaService) private prismaService: PrismaService) {}
@@ -74,7 +79,7 @@ export class BufferService {
 		}
 	}
 
-	async upload(file: ExcelFile): Promise<any> {
+	async oldOldupload(file: ExcelFile): Promise<any> {
 		const mainData: {
 			options: { title: string; index: number }[];
 			headers: { title: string; index: number; header: string }[];
@@ -305,7 +310,58 @@ export class BufferService {
 		return errorsArray;
 	}
 
-	async newUpload(file: ExcelFile): Promise<any> {
+	async upload(file: ExcelFile): Promise<void> {
+		const errorsArray = [];
+		let optionsRow: { index: number; title: string }[] = [];
+		let headersRow: { title: string; header: string; index: number }[] = [];
+		let beginRow: { title: string; begin: string; index: number; header: string }[] = [];
+		let endRow: {
+			title: string | number;
+			index: number;
+			header: string;
+			begin: string | number;
+			end: string | number;
+		}[] = [];
+		for await (const workSheetReader of new Excel.stream.xlsx.WorkbookReader(file.get(), {})) {
+			for await (const row of workSheetReader) {
+				switch (row.number) {
+					case 1:
+						optionsRow = new ExcelRowOptionsComponent(row).process();
+						continue;
+					case 2:
+						headersRow = new ExcelRowHeadersComponent(row, optionsRow).process();
+						continue;
+					case 3:
+						beginRow = new ExcelRowBeginComponent(
+							row,
+							row.number,
+							errorsArray,
+							headersRow,
+						).process();
+						continue;
+					case 4:
+						endRow = new ExcelRowEndComponent(
+							row,
+							row.number,
+							errorsArray,
+							beginRow,
+							this.prismaService,
+						).process();
+						continue;
+					default:
+						await new ExcelRowValueComponent(
+							row,
+							row.number,
+							errorsArray,
+							endRow,
+							this.prismaService,
+						).executeSQLBuffVar();
+				}
+			}
+		}
+	}
+
+	async oldUpload(file: ExcelFile): Promise<any> {
 		const mainData: {
 			options: { title: string; index: number }[];
 			headers: { title: string; index: number; header: string }[];
