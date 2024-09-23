@@ -32,12 +32,17 @@ export class PreparedToInsertRecordIntoBuffVar {
 		}[] = [];
 
 		for (let i = 0; i < this.readData.length; i++) {
+			let escapedValue;
+			if (this.readData[i].value && typeof this.readData[i].value === 'string') {
+				escapedValue = (this.readData[i].value as string).replace(/'/g, "''");
+			}
+
 			if (this.titleValues.includes(this.readData[i].title as number)) {
 				dataToInsert.push({
 					sb: this.readData[i].begin as number,
 					eb: this.readData[i].end as number,
 					column: this.readData[i].header,
-					value: this.readData[i].value,
+					value: escapedValue ? escapedValue : this.readData[i].value,
 					title: this.readData[i].title as number,
 				});
 			}
@@ -46,7 +51,7 @@ export class PreparedToInsertRecordIntoBuffVar {
 					sb: this.readData[i].begin as number,
 					eb: this.readData[i].end as number,
 					column: this.readData[i].title as string,
-					value: this.readData[i].value,
+					value: escapedValue ? escapedValue : this.readData[i].value,
 					title: null,
 				});
 			}

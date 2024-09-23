@@ -1,7 +1,7 @@
 import * as Excel from 'exceljs';
 import { ExcelFile } from '../entities/excel-file';
 import { ExtractedExcelRow } from './components/row/extracted-excel-row';
-import { TransformedToArrayRow } from './components/row/transformed-to-array-row';
+import { TransformedToArrayRow } from './components/row/transformed/transformed-to-array-row';
 import { FilledEmptySpaceRow } from './components/row/filled/filled-empty-space-row';
 import { CutHeadersByOptionsRow } from './components/row/cut-headers-by-options-row';
 import { MergedHeadersAndOptionsArray } from './components/row/merged/merged-headers-and-options-array';
@@ -24,9 +24,55 @@ import { PreparedQueryToInsertBuff } from './components/query/prepared-query-to-
 import { FilledSbEbZeros } from './components/row/filled/filled-sb-eb-zeros';
 import { PreparedQueryToInsertBuffVar } from './components/query/prepared-query-to-insert-buff-var';
 import { CreatedRowInDb } from './components/db/created-row-in-db';
+import { TransformedObjectCellToString } from './components/row/transformed/transformed-object-cell-to-string';
+import { BuffTable } from './components/db/buff-table';
+import { ExcelRowProcessorFactory } from './components/row/processor/excel-row-processor-factory';
 
 export class BufferService {
 	constructor(@Inject(DIConstants.PrismaService) private prismaService: PrismaService) {}
+
+	async updatePopname(popname: string): Promise<{ message: string }> {
+		try {
+			const result = await this.prismaService.$executeRaw`UPDATE buff set popname = ${popname}`;
+			return {
+				message: 'Popname был успешно изменён',
+			};
+		} catch (e) {
+			return {
+				message: `Произошла ошибка : ${JSON.stringify(e)}`,
+			};
+		}
+	}
+
+	async processBuffer(): Promise<{
+		ref_inserted_count: number;
+		pop_inserted_count: number;
+		individuals_inserted_count: number;
+		var_inserted_count: number;
+		errors?: any;
+	}> {
+		const errors = [];
+		try {
+			const result = (await this.prismaService.$queryRawUnsafe(
+				`SELECT * FROM procedure_process_buff()`,
+			)) as {
+				ref_inserted_count: number;
+				pop_inserted_count: number;
+				individuals_inserted_count: number;
+				var_inserted_count: number;
+			}[];
+			return result[0];
+		} catch (e) {
+			errors.push(e.meta);
+			return {
+				ref_inserted_count: 0,
+				pop_inserted_count: 0,
+				individuals_inserted_count: 0,
+				var_inserted_count: 0,
+				errors: errors,
+			};
+		}
+	}
 
 	async upload(file: ExcelFile): Promise<any> {
 		const mainData: {
@@ -54,14 +100,7 @@ export class BufferService {
 			values: [],
 		};
 		let c = 0;
-		const resultData: {
-			errors: any[];
-			rows: number;
-		} = {
-			errors: [],
-			rows: 0,
-		};
-		const emptyData = [];
+		await new BuffTable(this.prismaService).recreate();
 		const errorsArray = [];
 		for await (const workSheetReader of new Excel.stream.xlsx.WorkbookReader(file.get(), {})) {
 			for await (const row of workSheetReader) {
@@ -88,13 +127,16 @@ export class BufferService {
 				}
 				if (c === 1) {
 					const extractedExcelRow = new ExtractedExcelRow(row).extract();
-					const transformedToArrayRow = new TransformedToArrayRow(
+					const transformedObjectCellToString = new TransformedObjectCellToString(
 						extractedExcelRow,
+					).transform();
+					const transformedToArrayRow = new TransformedToArrayRow(
+						transformedObjectCellToString,
 						null,
 						c,
 						errorsArray,
 					).extract();
-					new CheckedEmptyRow(extractedExcelRow, 'Заголовки : c = 1').check();
+					new CheckedEmptyRow(transformedObjectCellToString, 'Заголовки : c = 1').check();
 
 					const filledEmptySpaceRow = new FilledEmptySpaceRow(transformedToArrayRow, null).fill();
 					const cutHeadersByOptionsRow = new CutHeadersByOptionsRow(
@@ -168,8 +210,14 @@ export class BufferService {
 				}
 				if (c > 3) {
 					const extractedExcelRow = new ExtractedExcelRow(row).extract();
-					const transformedToArrayRow = new TransformedToArrayRow(
+					const transformedObjectCellToString = new TransformedObjectCellToString(
 						extractedExcelRow,
+					).transform();
+					if (!extractedExcelRow.length) {
+						continue;
+					}
+					const transformedToArrayRow = new TransformedToArrayRow(
+						transformedObjectCellToString,
 						null,
 						c,
 						errorsArray,
@@ -221,10 +269,6 @@ export class BufferService {
 							},
 						],
 					).add();
-
-					// TODO Вот тут нужно обернуть в цепочку обязанностей
-					//
-
 					const filledSbEbZeros = new FilledSbEbZeros(
 						insertRowAddedDefaultParam.count,
 						insertRowAddedDefaultParam.data,
@@ -232,8 +276,8 @@ export class BufferService {
 					).fill();
 
 					const preparedQueryToInsertBuff = new PreparedQueryToInsertBuff(
-						insertRowAddedDefaultParam.count,
-						insertRowAddedDefaultParam.data,
+						filledSbEbZeros.count,
+						filledSbEbZeros.dataToInsert,
 						[0, 1, 2, 3],
 					).prepare();
 
@@ -257,8 +301,86 @@ export class BufferService {
 					c += 1;
 				}
 			}
-			return errorsArray;
 		}
-		return emptyData;
+		return errorsArray;
+	}
+
+	async newUpload(file: ExcelFile): Promise<any> {
+		const mainData: {
+			options: { title: string; index: number }[];
+			headers: { title: string; index: number; header: string }[];
+			begin: { title: string; index: number; header: string; begin: string }[];
+			end: {
+				header: string;
+				title: string | number;
+				index: number;
+				begin: string | number;
+				end: string | number;
+			}[];
+			values: {
+				title: string | number;
+				index: number;
+				begin: string | number;
+				end: string | number;
+			}[];
+		} = {
+			options: [],
+			headers: [],
+			values: [],
+			end: [],
+			begin: [],
+		};
+		let c = 0;
+		await new BuffTable(this.prismaService).recreate();
+		const errorsArray = [];
+		for await (const workSheetReader of new Excel.stream.xlsx.WorkbookReader(file.get(), {})) {
+			for await (const row of workSheetReader) {
+				const processor = ExcelRowProcessorFactory.createProcessor(c, mainData, errorsArray);
+				processor.process(row);
+				if (c === 3) {
+					await new DynamicsColumns(
+						processor.get().end as {
+							title: string | number;
+							begin: string | number;
+							end: string | number;
+							index: number;
+							header: string;
+						}[],
+						this.prismaService,
+						'buff',
+						[0, 1, 2, 3],
+					).create();
+				}
+				if (c >= 4) {
+					const filledSbEbZeros = processor.get().values;
+					const preparedQueryToInsertBuff = new PreparedQueryToInsertBuff(
+						filledSbEbZeros.count,
+						filledSbEbZeros.dataToInsert,
+						[0, 1, 2, 3],
+					).prepare();
+
+					const returnedId = await new CreatedRowInDb(
+						this.prismaService,
+						preparedQueryToInsertBuff,
+						'таблица buff',
+					).create();
+
+					const preparedQueryToInsertBuffVar = new PreparedQueryToInsertBuffVar(
+						returnedId[0].buffid,
+						filledSbEbZeros.dataToInsert,
+						[0, 1, 2, 3],
+					).prepare();
+
+					const result = await new CreatedRowInDb(
+						this.prismaService,
+						preparedQueryToInsertBuffVar,
+						'таблица buff_var',
+					).create();
+				}
+
+				c += 1;
+			}
+		}
+		return errorsArray;
 	}
 }
