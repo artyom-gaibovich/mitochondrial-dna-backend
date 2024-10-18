@@ -40,6 +40,10 @@ export class ValueRowProcessor extends ExcelRowProcessor {
 			this.c,
 		).convert();
 
+
+
+
+
 		const preparedToInsertRecordIntoBuffVar = new PreparedToInsertRecordIntoBuffVar(
 			convertedRowNValueToInt,
 			[0, 1, 2, 3],
