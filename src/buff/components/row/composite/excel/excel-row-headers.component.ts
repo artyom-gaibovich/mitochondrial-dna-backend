@@ -1,5 +1,5 @@
 import * as Excel from 'exceljs';
-import { BaseRowComponentInterface, HeadersRowComponentInterface } from './excel-row-component.interfaces';
+import { HeadersRowComponentInterface } from './excel-row-component.interfaces';
 import { ExtractedExcelRow } from '../../extracted-excel-row';
 import { TransformedObjectCellToString } from '../../transformed/transformed-object-cell-to-string';
 import { TransformedToArrayRow } from '../../transformed/transformed-to-array-row';

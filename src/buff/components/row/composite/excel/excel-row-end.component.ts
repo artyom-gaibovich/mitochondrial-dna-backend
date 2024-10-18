@@ -45,12 +45,11 @@ export class ExcelRowEndComponent implements EndRowComponentInterface {
 		).merge();
 
 		new CheckedToSeqHasSbEb(mergedEndAndBeginArray, null).check();
-		const convertedToIntBeginEndOptions = new ConvertedToIntBeginEndOptions(
+		return new ConvertedToIntBeginEndOptions(
 			mergedEndAndBeginArray,
 			['1', '0', '2', '3'],
 			null,
 		).convert();
-		return convertedToIntBeginEndOptions;
 	}
 
 	async createColumns(): Promise<void> {
